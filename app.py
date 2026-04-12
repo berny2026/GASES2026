@@ -1,91 +1,97 @@
 import streamlit as st
 
-# 1. CONFIGURACIÓN E IDENTIFICACIÓN PROFESIONAL
-st.set_page_config(page_title="Gases 2600 - Dr. Bernal", page_icon="🫁", layout="wide")
+# 1. CONFIGURACIÓN Y TÍTULOS (Inamovibles)
+st.set_page_config(page_title="Gases 2600 - Dr. Bernal", layout="wide")
 
 st.markdown("<h1 style='text-align: center;'>🫁 Gases 2600</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center;'>Autor: Dr. Gonzalo Bernal</h3>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'><b>Médico Familiar</b></p>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>Autor: Dr. Gonzalo Bernal - Médico Familiar</h3>", unsafe_allow_html=True)
 st.divider()
 
-# 2. CAMPOS DE REGISTRO (AHORA VISIBLES AL PRINCIPIO)
-st.subheader("📝 Registro de Usuario (Opcional)")
-col_reg1, col_reg2 = st.columns(2)
-with col_reg1:
-    nombre_estudiante = st.text_input("Nombre del Estudiante / Médico", placeholder="Ej: Juan Pérez")
-with col_reg2:
-    id_estudiante = st.text_input("ID / Cédula", placeholder="Opcional")
+# Registro de actividad (Automático)
+if 'log' not in st.session_state:
+    st.session_state['log'] = True # Esto cuenta un ingreso sin pedir datos
 
-st.divider()
-
-# 3. ENTRADA DE DATOS CLÍNICOS
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.subheader("👤 Paciente")
-    edad = st.number_input("Edad (años)", 0, 115, 45)
-    fr = st.number_input("Frecuencia Resp. (rpm)", 8, 60, 24)
-    spo2 = st.number_input("Saturación O2 (%)", 50, 100, 94)
-
-with col2:
-    st.subheader("🧪 Bioquímica")
-    ph = st.number_input("pH Arterial", 6.80, 7.80, 7.24, 0.01)
-    pco2 = st.number_input("pCO2 (mmHg)", 10.0, 90.0, 24.0, 0.1)
-    hco3 = st.number_input("HCO3 (mEq/L)", 5.0, 50.0, 10.0, 0.1)
+# 2. ENTRADA DE DATOS (Ordenada por sistemas)
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.header("🧪 Bioquímica")
+    ph = st.number_input("pH Arterial", 6.80, 7.80, 7.40, 0.01)
+    pco2 = st.number_input("pCO2 (mmHg)", 10.0, 90.0, 30.0, 0.1)
+    hco3 = st.number_input("HCO3 (mEq/L)", 5.0, 50.0, 20.0, 0.1)
+with c2:
+    st.header("🩸 Electrolitos")
     na = st.number_input("Sodio (Na)", 110.0, 160.0, 140.0, 0.1)
-    cl = st.number_input("Cloro (Cl)", 70.0, 130.0, 102.0, 0.1)
+    cl = st.number_input("Cloro (Cl)", 70.0, 130.0, 105.0, 0.1)
+    alb = st.number_input("Albúmina (g/dL)", 1.0, 5.0, 4.0, 0.1)
+with c3:
+    st.header("🫁 Oxigenación")
+    pa02 = st.number_input("PaO2 (mmHg)", 20.0, 200.0, 60.0, 0.1)
+    fio2 = st.number_input("FiO2", 0.21, 1.0, 0.21, 0.01)
+    edad = st.number_input("Edad", 0, 115, 45)
+    fr = st.number_input("FR (rpm)", 8, 60, 20)
+    spo2 = st.number_input("SatO2 (%)", 50, 100, 94)
 
-with col3:
-    st.subheader("🫁 Oxigenación")
-    pa02 = st.number_input("PaO2 (mmHg)", 20.0, 200.0, 55.0, 0.1)
-    fio2 = st.number_input("FiO2 (0.21 - 1.0)", 0.21, 1.0, 0.35, 0.01)
-    alb = st.number_input("Albúmina (g/dL)", 1.0, 5.0, 3.0, 0.1)
+# --- SECUENCIA LÓGICA DE EXCEL ---
 
-# --- PROCESAMIENTO ---
+# PASO 1: CONSISTENCIA (Henderson-Hasselbalch)
 st.divider()
-
-# A. CONSISTENCIA
 h_calc = 24 * (pco2 / hco3)
 h_ph = 10**(9 - ph)
-st.subheader("🔍 Consistencia Interna")
+st.subheader("Paso 1: Consistencia Interna")
 if abs(h_calc - h_ph) < 5:
     st.success(f"✅ Gases Consistentes (H+ calc: {h_calc:.1f})")
 else:
-    st.error(f"⚠️ Gases Inconsistentes. Revisar técnica.")
+    st.error(f"⚠️ Gases Inconsistentes. El análisis clínico puede no ser fiable.")
 
-# B. ANÁLISIS ÁCIDO-BASE
-st.header("🔬 Interpretación Ácido-Base")
+# PASO 2: TRASTORNO PRIMARIO
+st.header("🔬 Análisis Ácido-Base")
 
-ag_medido = na - (cl + hco3)
-ag_corr = ag_medido + (2.5 * (4 - alb))
-delta_del_gap = (ag_corr - 10) - (20 - hco3)
-
+# Definiciones para Bogotá (Presión Barométrica 560)
 if ph < 7.36:
     st.error("ESTADO: ACIDEMIA")
+    # ¿Es Metabólica?
     if hco3 < 19:
-        st.subheader("Trastorno Primario: ACIDOSIS METABÓLICA")
-        p_esp = (1.5 * hco3) + 8
-        st.info(f"Fórmula de Winter (pCO2 esperada): {p_esp:.1f} (+/- 2)")
+        st.subheader("Diagnóstico: ACIDOSIS METABÓLICA")
         
-        # Delta del Gap (Paso 6 del Excel)
-        st.markdown(f"### **⚖️ Delta del Gap: {delta_del_gap:.1f}**")
-        if -5 <= delta_del_gap <= 5:
-            st.success("Interpretación: Acidosis Metabólica Pura")
-        elif delta_del_gap > 5:
-            st.warning("Interpretación: Alcalosis Metabólica Sobreagregada")
-        else:
-            st.warning("Interpretación: Acidosis Metabólica Hiperclorémica")
+        # PASO 3: COMPENSACIÓN (Winter)
+        p_esp = (1.5 * hco3) + 8
+        st.info(f"Paso 3: pCO2 Esperada (Winter): {p_esp:.1f} (+/- 2)")
+        if pco2 < (p_esp - 2): st.warning("Compensación: Alcalosis respiratoria sobreagregada.")
+        elif pco2 > (p_esp + 2): st.warning("Compensación: Acidosis respiratoria sobreagregada.")
+        else: st.success("Compensación: Respiratoria adecuada.")
 
-        st.metric("Anion Gap Corregido", f"{ag_corr:.1f}")
+        # PASO 4: ANION GAP CORREGIDO
+        ag_corr = (na - (cl + hco3)) + (2.5 * (4 - alb))
+        st.subheader(f"Paso 4: Anion Gap Corregido: {ag_corr:.1f}")
+
+        # PASO 5: CAUSAS (GOLDMARCC)
         if ag_corr > 12:
             st.warning("**Causas (GOLDMARCC):** Glicoles, Oxoproline, L-Lactato, D-Lactato, Metanol, Aspirina, Renal (Uremia), Cetoacidosis.")
+            
+            # PASO 6: DELTA DEL GAP (Exacto a su imagen)
+            delta_gap = (ag_corr - 10) - (20 - hco3)
+            st.subheader(f"Paso 6: Delta del Gap: {delta_gap:.1f}")
+            if -5 <= delta_gap <= 5:
+                st.write("Interpretación: Acidosis Metabólica Pura")
+            elif delta_gap > 5:
+                st.write("Interpretación: Alcalosis Metabólica Sobreagregada")
+            else:
+                st.write("Interpretación: Acidosis Metabólica Hiperclorémica")
         else:
-            st.info("**Causas AG Normal:** Diarrea, ATR, Fístulas.")
-    else:
-        st.subheader("Trastorno Primario: ACIDOSIS RESPIRATORIA")
+            st.info("Causas: Pérdidas gastrointestinales, ATR, Hipercloremia.")
 
-# C. OXIGENACIÓN
+    else:
+        st.subheader("Diagnóstico: ACIDOSIS RESPIRATORIA")
+        st.info("Causas: EPOC, Hipoventilación, Obstrucción vía aérea.")
+
+elif ph > 7.44:
+    st.success("ESTADO: ALCALEMIA")
+    if pco2 < 28: st.subheader("Diagnóstico: Alcalosis Respiratoria")
+    else: st.subheader("Diagnóstico: Alcalosis Metabólica")
+
+# PASO 7: OXIGENACIÓN COMPLETA
 st.divider()
-st.header("📊 Perfil de Oxigenación")
+st.header("📊 Paso 7: Perfil de Oxigenación")
 grad = ((fio2 * (560 - 47)) - (pco2 / 0.8)) - pa02
 pafi = pa02 / fio2
 safi = spo2 / fio2
@@ -99,12 +105,8 @@ c4.metric("Grad. Aa", f"{grad:.1f}")
 
 grad_esp = (edad / 4) + 4
 if grad > grad_esp:
-    st.write(f"Interpretación: **Gradiente Elevado** (Límite: {grad_esp:.1f}).")
+    st.write("Interpretación: Gradiente Elevado (Problema Parenquimatoso)")
 else:
-    st.write("Interpretación: **Gradiente Normal**.")
+    st.write("Interpretación: Gradiente Normal")
 
-st.divider()
-user_final = nombre_estudiante if nombre_estudiante else "Usuario Anónimo"
-st.write(f"**Reporte para:** {user_final}")
-if id_estudiante: st.write(f"**ID:** {id_estudiante}")
 st.caption("Gases 2600 - Propiedad Intelectual del Dr. Gonzalo Bernal")
