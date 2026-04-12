@@ -1,91 +1,67 @@
 import streamlit as st
 
-# Configuración visual de la App
-st.set_page_config(page_title="Gases 2600", page_icon="🫁", layout="centered")
-
-# Estilo personalizado Modo Oscuro y Footer
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: white; }
-    .stNumberInput label { color: #00d4ff !important; font-weight: bold; }
-    footer { visibility: hidden; }
-    .custom-footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #0e1117;
-        color: #888;
-        text-align: center;
-        padding: 10px;
-        font-size: 12px;
-        border-top: 1px solid #333;
-    }
-    </style>
-    <div class="custom-footer">
-        © 2026 - Algoritmo Original y Propiedad Intelectual: <b>Dr. Gonzalo Bernal Ferreira, Médico Familiar</b>. <br>
-        Optimizado para la altitud de Bogotá (2600 msnm).
-    </div>
-    """, unsafe_allow_html=True)
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Gases 2600 - Dr. Bernal", page_icon="🫁", layout="centered")
 
 st.title("🫁 Gases 2600")
-st.write("---")
+st.markdown("### Herramienta Médica Integral (Bogotá - 2600 msnm)")
 
 # --- ENTRADA DE DATOS ---
-st.subheader("⌨️ Ingreso de Datos del Paciente")
+st.header("⌨️ Ingreso de Datos")
 col1, col2 = st.columns(2)
 
 with col1:
-    ph = st.number_input("pH Arterial", min_value=6.5, max_value=8.0, value=7.28, step=0.01)
-    pco2 = st.number_input("pCO2 (mmHg)", value=30.0)
-    hco3 = st.number_input("HCO3 (mEq/L)", value=14.0)
-    edad = st.number_input("Edad del Paciente", value=50)
+    ph = st.number_input("pH Arterial", 6.80, 7.80, 7.40, 0.01)
+    pco2 = st.number_input("pCO2 (mmHg)", 10.0, 80.0, 30.0, 0.1)
+    hco3 = st.number_input("HCO3 (mEq/L)", 5.0, 50.0, 20.0, 0.1)
+    na = st.number_input("Sodio Sérico (Na+)", 100.0, 160.0, 140.0, 0.1)
 
 with col2:
-    pao2 = st.number_input("PaO2 (mmHg)", value=55.0)
-    fio2 = st.number_input("FiO2 (Ej: 0.21)", value=0.21, step=0.01)
-    fr = st.number_input("Frecuencia Respiratoria", value=24)
-    sat = st.number_input("Saturación SpO2 (%)", value=88.0)
+    pa02 = st.number_input("PaO2 (mmHg)", 30.0, 200.0, 60.0, 0.1)
+    fio2 = st.number_input("FiO2 (Ej: 0.21)", 0.21, 1.0, 0.21, 0.01)
+    cl = st.number_input("Cloro Sérico (Cl-)", 70.0, 130.0, 104.0, 0.1)
+    fr = st.number_input("Frecuencia Resp. (bpm)", 8, 60, 20)
 
-# --- CÁLCULOS INTERNOS (El cerebro del Excel) ---
-# Gradiente Alveolo-arterial
-pao2_alv = (513 * fio2) - (pco2 / 0.8)
-grad_real = pao2_alv - pao2
-grad_ideal = (edad / 4) + 4
-diferencia_grad = grad_real - grad_ideal
+# --- ANÁLISIS ÁCIDO-BASE ---
+st.divider()
+st.header("🔬 Diagnóstico Ácido-Base")
 
-# ROX Index
-rox = (sat / fio2) / fr if (fr > 0 and fio2 > 0) else 0
-
-# --- LÓGICA DE DIAGNÓSTICO (Columna AY del Excel) ---
-if diferencia_grad < 10:
-    if pco2 > 32:
-        dx_oxigenacion = "Hipoventilación Pura (SNC, Sedación, Neuromuscular)"
-    else:
-        dx_oxigenacion = "FiO2 baja (Altitud) o Error en muestra"
+# Trastorno Primario
+if ph < 7.36:
+    trastorno = "Acidemia"
+    primario = "Acidosis Metabólica" if pco2 <= 30 else "Acidosis Respiratoria"
+elif ph > 7.44:
+    trastorno = "Alcalemia"
+    primario = "Alcalosis Respiratoria" if pco2 <= 30 else "Alcalosis Metabólica"
 else:
-    if pco2 > 32:
-        dx_oxigenacion = "Causa Mixta (EPOC, Asma grave, Obstrucción)"
+    trastorno = "Equilibrio"
+    primario = "Normal o Mixto"
+
+st.subheader(f"Estado: {trastorno} / Primario: {primario}")
+
+# Cálculos de Compensación y Causas
+if "Metabólica" in primario:
+    pco2_esp = (1.5 * hco3) + 8
+    ag = na - (cl + hco3)
+    st.write(f"**pCO2 Esperada (Winter):** {pco2_esp:.1f} mmHg")
+    st.write(f"**Anion Gap:** {ag:.1f}")
+    if ag > 12:
+        st.error("⚠️ CAUSAS (GOLDMARCC): Glicoles, Oxoproline, L-Lactato, D-Lactato, Metanol, Aspirina, Renal (Uremia), Cetoacidosis.")
     else:
-        dx_oxigenacion = "Alteración V/Q o Shunt (Neumonía, TEP, SDRA, Sepsis)"
+        st.warning("⚠️ CAUSAS (Hiperclorémica): Diarrea, Fístulas, Acidosis Tubular Renal.")
 
-# --- MOSTRAR RESULTADOS ---
-st.write("---")
-st.subheader("📊 Resultados de Oxigenación")
+if "Respiratoria" in primario:
+    if "Acidosis" in primario:
+        st.error("⚠️ CAUSAS: EPOC, Asma grave, Obstrucción vía aérea, Depresión del SNC, Enfermedad Neuromuscular.")
+    else:
+        st.success("⚠️ CAUSAS: Ansiedad, Dolor, Fiebre, TEP, Altitud, Embarazo, Sepsis temprana.")
 
-res_col1, res_col2 = st.columns(2)
-with res_col1:
-    st.metric("Gradiente A-a Real", f"{grad_real:.1f}")
-    st.metric("Diferencia (R-I)", f"{diferencia_grad:.1f}")
+# --- OXIGENACIÓN ---
+st.divider()
+st.header("🫁 Resultados de Oxigenación")
+gradiente = ( (fio2 * (560 - 47)) - (pco2 / 0.8) ) - pa02
+rox = (pa02 / fio2) / fr
+st.write(f"**Gradiente Alveolo-Arterial (Aa):** {gradiente:.1f}")
+st.write(f"**Índice de ROX:** {rox:.1f}")
 
-with res_col2:
-    st.metric("Índice de ROX", f"{rox:.1f}")
-    pulmon_estado = "🟢 Pulmón Sano" if diferencia_grad < 10 else "🔴 Pulmón Lesionado"
-    st.info(pulmon_estado)
-
-st.success(f"**Diagnóstico Sugerido:** {dx_oxigenacion}")
-
-# --- BOTÓN DE COMPARTIR ---
-st.write("---")
-if st.button("🔗 Generar link para compartir"):
-    st.write("Copia este link y envíalo a tus colegas: https://gases2600.streamlit.app")
+st.info("Nota: Cálculos ajustados para presión barométrica de 560 mmHg (Bogotá).")
