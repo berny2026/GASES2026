@@ -3,7 +3,7 @@ import streamlit as st
 # 1. MATRIZ DE CONFIGURACIÓN
 st.set_page_config(page_title="Gases 2600 - Matriz Clínica", layout="wide")
 st.markdown("<h1 style='text-align: center;'>🫁 Gases 2600</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align: center;'>Matriz de Decisión Clínica: Dr. Gonzalo Bernal</h3>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center;'>Interpretación: Dr. Gonzalo Bernal</h3>", unsafe_allow_html=True)
 st.divider()
 
 # 2. ENTRADA DE DATOS
@@ -23,7 +23,7 @@ with c3:
     fr = st.number_input("FR (resp/min)", 8, 60, 20)
     spo2 = st.number_input("SatO2 (%)", 50, 100, 94)
 
-# --- MATRIZ LÓGICA PASO A PASO ---
+# --- PROCESAMIENTO ANALÍTICO ---
 st.divider()
 
 # PASO 1: CONSISTENCIA
@@ -33,80 +33,52 @@ st.subheader("Paso 1: Consistencia Interna")
 if abs(h_calc - h_ph) < 5:
     st.success(f"✅ Gases Consistentes (H+ calc: {h_calc:.1f})")
 else:
-    st.error("⚠️ Gases Inconsistentes. Revisar técnica.")
+    st.error("⚠️ Gases Inconsistentes.")
 
-# PASO 2: DETERMINACIÓN DEL ESTADO
-st.subheader("Paso 2: Estado del pH")
-if ph < 7.36:
-    estado = "ACIDEMIA"
-    st.error(estado)
-elif ph > 7.44:
-    estado = "ALCALEMIA"
-    st.success(estado)
-else:
-    estado = "NORMAL"
-    st.info("pH Neutro o Trastorno Mixto")
+# PASO 2: ESTADO
+if ph < 7.36: estado = "ACIDEMIA"
+elif ph > 7.44: estado = "ALCALEMIA"
+else: estado = "NORMAL"
+st.subheader(f"Paso 2: Estado -> {estado}")
 
-# PASO 3 A 6: MATRIZ DE TRASTORNOS
-st.header("Análisis del Trastorno Primario")
+# PASOS 3-6: ANÁLISIS DE TRASTORNOS
+ag_c = (na - (cl + hco3)) + (2.5 * (4 - alb))
 
 if estado == "ACIDEMIA":
-    # ¿Metabólica o Respiratoria?
-    if hco3 < 19: # Umbral Bogotá
-        st.subheader("Trastorno: Acidosis Metabólica")
-        # Compensación Winter
-        p_esp = (1.5 * hco3) + 8
-        st.info(f"pCO2 Esperada: {p_esp:.1f} (+/- 2)")
-        if pco2 > p_esp + 2: st.warning("Asociado: Acidosis Respiratoria")
-        elif pco2 < p_esp - 2: st.warning("Asociado: Alcalosis Respiratoria")
+    if hco3 < 19:
+        st.header("Acidosis Metabólica")
+        winter = (1.5 * hco3) + 8
+        st.info(f"pCO2 Esperada (Winter): {winter:.1f} (+/- 2)")
+        if pco2 > winter + 2: st.warning("Interpretación: Acidosis Respiratoria Sobreagregada")
+        elif pco2 < winter - 2: st.warning("Interpretación: Alcalosis Respiratoria Sobreagregada")
         
-        # Anion Gap y Delta (Su imagen)
-        ag_c = (na - (cl + hco3)) + (2.5 * (4 - alb))
-        delta = (ag_c - 10) - (20 - hco3)
-        st.write(f"Anion Gap Corregido: **{ag_c:.1f}**")
-        if ag_c > 12: 
-            st.warning("Causas: GOLDMARCC")
-            st.write(f"**Delta del Gap: {delta:.1f}**")
+        st.metric("Anion Gap Corregido", f"{ag_c:.1f}")
+        if ag_c > 12:
+            delta = (ag_c - 10) - (20 - hco3)
+            st.write(f"**Paso 6: Delta del Gap: {delta:.1f}**")
             if -5 <= delta <= 5: st.info("Interpretación: Pura")
-            elif delta > 5: st.info("Interpretación: Alcalosis Metabólica Asociada")
+            elif delta > 5: st.info("Interpretación: Alcalosis Metabólica Sobreagregada")
             else: st.info("Interpretación: Acidosis Metabólica AG Normal Asociada")
     else:
-        st.subheader("Trastorno: Acidosis Respiratoria")
-        h_esp = 20 + (0.1 * (pco2 - 30)) # Aguda
-        st.info(f"HCO3 Esperado (Agudo): {h_esp:.1f}")
+        st.header("Acidosis Respiratoria")
 
 elif estado == "ALCALEMIA":
     if hco3 > 22:
-        st.subheader("Trastorno: Alcalosis Metabólica")
+        st.header("Alcalosis Metabólica")
         p_esp = 30 + (0.7 * (hco3 - 20))
         st.info(f"pCO2 Esperada: {p_esp:.1f}")
-        if pco2 > p_esp + 2: st.warning("Asociado: Acidosis Respiratoria")
     else:
-        st.subheader("Trastorno: Alcalosis Respiratoria")
-        h_esp = 20 - (0.2 * (30 - pco2))
-        st.info(f"HCO3 Esperado: {h_esp:.1f}")
+        st.header("Alcalosis Respiratoria")
 
-# PASO 7: MATRIZ DE OXIGENACIÓN
+# PASO 7: OXIGENACIÓN
 st.divider()
-st.header("Paso 7: Perfil de Oxigenación")
-pa_alv = (fio2 * 513) - (pco2 / 0.8)
-grad_p = pa_alv - pa02
+st.header("Paso 7: Oxigenación")
+grad_p = ((fio2 * 513) - (pco2 / 0.8)) - pa02
 grad_i = (edad / 4) + 4
-
-col_res1, col_res2 = st.columns(2)
-with col_res1:
-    st.write(f"Gradiente Aa Paciente: **{grad_p:.1f}**")
-    st.write(f"Gradiente Aa Ideal: **{grad_i:.1f}**")
-with col_res2:
-    st.write(f"PAFI: **{pa02/fio2:.1f}**")
-    st.write(f"Índice de ROX: **{(spo2/fio2)/fr:.2f}**")
-
+st.write(f"Gradiente Aa Paciente: **{grad_p:.1f}** | Gradiente Ideal (Edad): **{grad_i:.1f}**")
 if grad_p > grad_i + 5:
-    st.error("Interpretación: Gradiente Elevado (Parenquimatosa)")
-    st.write("Causas: Shunt, V/Q, Difusión")
+    st.error("Interpretación: Causa Parenquimatosa (Shunt, V/Q, Difusión)")
 else:
-    st.success("Interpretación: Gradiente Normal (Extrapulmonar)")
-    st.write("Causas: Hipoventilación, FiO2 baja")
+    st.success("Interpretación: Causa Extrapulmonar (Hipoventilación)")
 
-st.divider()
-st.caption("Gases 2600 - Estructura Blindada Dr. Gonzalo Bernal")
+st.caption("Gases 2600 - Propiedad Intelectual del Dr. Gonzalo Bernal")
