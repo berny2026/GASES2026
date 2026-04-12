@@ -1,4 +1,21 @@
 import streamlit as st
+import streamlit.components.v1 as components
+
+# --- CONFIGURACIÓN DE GOOGLE ANALYTICS ---
+# Este bloque permite que Google Analytics rastree las visitas
+components.html(
+    """
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GFRWYE6S9W"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-GFRWYE6S9W');
+    </script>
+    """,
+    height=0,
+)
+import streamlit as st
 import math
 
 # 1. IDENTIFICACIÓN Y TÍTULO
