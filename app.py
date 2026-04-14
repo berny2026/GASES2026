@@ -48,7 +48,7 @@ if ph < 7.2 or ph > 7.4:
     dif = abs(ph_hh - ph)
     st.write(f"pH Henderson-Hasselbalch: {ph_hh:.3f} | Diferencia: {dif:.3f}")
     if dif <= 0.05: st.success("HAY CONSISTENCIA INTERNA")
-    else: st.error("NO HAY CONSISTENCIA INTERNA. Sugerir repetir por posible contaminación con burbujas, anticoagulante o son venosos.")
+    else: st.error("NO HAY CONSISTENCIA INTERNA. Sugerir repetir por posible contaminación.")
 else:
     h_ion = 24 * (pco2 / hco3)
     r80 = 80 - float(f"{ph:.2f}"[-2:])
@@ -83,38 +83,38 @@ if ph < 7.4 and hco3 < 18:
     st.subheader("🛑 ACIDOSIS METABÓLICA")
     win = (1.5 * hco3) + 8
     st.write(f"PaCO2 Winters: {win:.1f} +/- 2")
-    if pco2 > win + 2: st.warning("Acidosis respiratoria sobreagregada")
-    elif pco2 < win - 2: st.warning("Alcalosis respiratoria")
+    if pco2 > win + 2: st.warning("Trastorno secundario: Acidosis respiratoria sobreagregada")
+    elif pco2 < win - 2: st.warning("Trastorno secundario: Alcalosis respiratoria asociada")
     
     st.write(f"Anión GAP Corregido: {ag_c:.1f}")
     if ag_c > 12:
-        st.error("CAUSA: ANION GAP ELEVADO - MNEMOTECNIA GOLDMARCC:")
+        st.error("CAUSA: ANION GAP ELEVADO - GOLDMARCC:")
         st.markdown("""
-        * **G:** Glicoles (refrigerantes para neveras, industriales o automóviles).
-        * **O:** Oxiprolina (intoxicación por acetaminofén).
-        * **L:** Lactato (acidosis láctica con lactato mayor a 4).
-        * **D:** D-lactato (como en intestino corto).
+        * **G:** Glicoles (refrigerantes).
+        * **O:** Oxiprolina (acetaminofén).
+        * **L:** Lactato (>4).
+        * **D:** D-lactato.
         * **M:** Metanol.
-        * **A:** Aspirina (ácido acetilsalicílico), anticonvulsivantes, ansiolíticos.
+        * **A:** Aspirina.
         * **R:** Rabdomiólisis.
-        * **C:** Cetoacidosis diabética o no diabética.
-        * **C:** Creatinina elevada o injuria renal aguda o crónica.
+        * **C:** Cetoacidosis.
+        * **C:** Creatinina (IR).
         """)
         dg = (ag_c - 10) - (20 - hco3)
         if -5 <= dg <= 5: st.info(f"Delta Gap {dg:.1f}: Acidosis Metabólica Pura")
         elif dg > 5: st.info(f"Delta Gap {dg:.1f}: Alcalosis Metabólica Sobreagregada")
         else: st.info(f"Delta Gap {dg:.1f}: Acidosis Metabólica Hiperclorémica")
     else:
-        st.info("CAUSA: AG NORMAL O BAJO (8-12): 1. Hipercloremia, 2. Diarrea, 3. ATR, 4. Hipofosfatemia, 5. Laxantes, 6. Acetazolamida.")
+        st.info("AG NORMAL O BAJO (8-12): 1. Hipercloremia, 2. Diarrea, 3. ATR, 4. Laxantes.")
 
 # ALCALOSIS RESPIRATORIA
 if ph > 7.4 and pco2 < 28:
     st.subheader("🛑 ALCALOSIS RESPIRATORIA")
     dif_p = 30 - pco2
     ratio = (20 - hco3) / (dif_p / 10) if dif_p != 0 else 0
-    if 1.9 <= ratio <= 2.1: st.warning("AGUDA")
+    if 1.9 <= ratio <= 2.1: st.warning("ESTADO: AGUDA")
     elif ratio < 2: st.error("Alcalosis metabólica adicional")
-    elif 3 <= ratio <= 5: st.warning("CRÓNICA")
+    elif 3 <= ratio <= 5: st.warning("ESTADO: CRÓNICA")
     elif ratio > 5: st.error("Acidosis metabólica adicional")
     st.markdown("**CAUSAS (VINDICATE):** Vascular, Inflamatorio, Neoplásico, Degenerativo/Drogas, Idiopático, Congénito, Autoinmune, Traumático, Endocrino.")
 
@@ -140,9 +140,7 @@ g_ideal = (edad / 4) + 4
 
 if pa02 < 60:
     st.error(f"HIPOXEMIA (PaO2: {pa02} mmHg)")
-    st.markdown("""
-    **CAUSAS:** 1. PB baja. 2. OVACE. 3. Laringe (Estridor). 4. Tráquea/Bronquios. 5. Ocupación alveolar (Pus, Sangre, Agua). 6. Intersticio. 7. Vaso (TEP).
-    """)
+    st.markdown("**CAUSAS:** 1. PB baja. 2. OVACE. 3. Laringe (Estridor). 4. Tráquea/Bronquios. 5. Alvéolo (Agua/Pus). 6. Intersticio. 7. TEP.")
 
 c1, c2, c3 = st.columns(3)
 c1.metric("PAFI", f"{pafi:.1f}")
@@ -151,4 +149,17 @@ c3.metric("ROX Index", f"{rox:.2f}")
 
 st.write(f"D(A-a)O2 Real: {g_real:.1f} | D(A-a)O2 Ideal: {g_ideal:.1f}")
 es_grad_elevado = g_real > (g_ideal + 10)
-if es_grad_elevado: st.error("Diferencia
+if es_grad_elevado: 
+    st.error("Diferencia Elevada: LESIÓN INTRAPULMONAR")
+else: 
+    st.success("Diferencia Normal: PULMÓN SANO")
+
+st.subheader("Interpretación por Gradiente:")
+if ph < 7.4 and pco2 > 32:
+    if not es_grad_elevado: st.info("Acidosis respiratoria + Pulmón Sano: Depresión SNC o Enf. Neuromuscular.")
+    else: st.info("Acidosis respiratoria + Lesión Intrapulmonar: Asma, Neumonía o EPOC.")
+elif ph > 7.4 and pco2 < 28:
+    if not es_grad_elevado: st.info("Alcalosis respiratoria + Pulmón Sano: Dolor, ansiedad, AVC, embarazo.")
+    else: st.info("Alcalosis respiratoria + Lesión Intrapulmonar: Neumonía, Edema pulmonar, TEP, Sepsis.")
+
+st.caption("Propiedad: Dr. Gonzalo Bernal Ferreira - Gases 2600")
