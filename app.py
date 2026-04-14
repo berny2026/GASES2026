@@ -115,16 +115,16 @@ if ph < 7.4 and hco3 < 18:
 
     st.write(f"Anion Gap Corregido: {ag_corregido:.1f}")
     if ag_corregido > 12:
-        st.error("AG ELEVADO (>12) - Causas (GOLDMARCC):")
-        st.write("G: glicoles, O: oxiprolina, L: lactato (>4), D: D-lactato, M: metanol, A: Aspirina, R: rabdomiólisis, C: cetoacidosis, C: Creatinina elevada.")
-        # DELTA GAP
-        delta_gap = (ag_corregido - 10) - (20 - hco3)
-        st.write(f"Delta Gap: {delta_gap:.1f}")
-        if -5 <= delta_gap <= 5: st.info("Interpretación: ACIDOSIS METABÓLICA PURA")
-        elif delta_gap > 5: st.info("Interpretación: ALCALOSIS METABÓLICA SOBREAGREGADA")
-        else: st.info("Interpretación: ACIDOSIS METABÓLICA HIPERCLORÉMICA")
-    else:
-        st.info("AG NORMAL O BAJO (8-12): Causas: Hipercloremia, Diarrea, ATR, Hipofosfatemia, etc.")
+        st.error("CAUSA: ANION GAP ELEVADO (>12) - Mnemotecnia GOLDMARCC:")
+        st.write("**G:** Glicoles (refrigerantes para neveras, industriales o automóviles).")
+        st.write("**O:** Oxiprolina (intoxicación por acetaminofén).")
+        st.write("**L:** Lactato (acidosis láctica con lactato mayor a 4).")
+        st.write("**D:** D-lactato (como en el síndrome de intestino corto).")
+        st.write("**M:** Metanol.")
+        st.write("**A:** Aspirina (ácido acetilsalicilico), anticonvulsivantes, ansiolíticos.")
+        st.write("**R:** Rabdomiólisis.")
+        st.write("**C:** Cetoacidosis diabética o no diabética.")
+        st.write("**C:** Creatinina elevada o injuria renal aguda o crónica.")
 
 # --- ALCALOSIS RESPIRATORIA ---
 if ph > 7.4 and pco2 < 28:
