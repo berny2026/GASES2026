@@ -2,16 +2,15 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-# --- 1. ANALYTICS ---
+# --- 1. CONFIGURACIÓN Y ANALYTICS ---
+st.set_page_config(page_title="Gases 2600 - Dr. Bernal", layout="wide")
 components.html("<script async src='https://www.googletagmanager.com/gtag/js?id=G-GFRWYE6S9W'></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-GFRWYE6S9W');</script>", height=0)
 
-# --- 2. CONFIGURACIÓN ---
-st.set_page_config(page_title="Gases 2600 - Dr. Bernal", layout="wide")
-st.markdown("<h1 style='text-align: center;'>🫁 Gases Arteriales 2600</h1>", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center;'>GONZALO BERNAL FERREIRA. MEDICO FAMILIAR</h2>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>🫁 App Gases Arteriales 2600</h1>", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center;'>DR. GONZALO BERNAL FERREIRA</h2>", unsafe_allow_html=True)
 st.divider()
 
-# --- 3. ENTRADA DE DATOS ---
+# --- 2. ENTRADA DE DATOS ---
 c1, c2, c3 = st.columns(3)
 with c1:
     ph = st.number_input("pH Arterial", 6.80, 7.80, 7.40, 0.01)
@@ -23,106 +22,93 @@ with c2:
     alb = st.number_input("Albúmina (g/dL)", 1.0, 5.0, 4.0, 0.1)
 with c3:
     pa02 = st.number_input("PaO2 (mmHg)", 20.0, 200.0, 60.0, 0.1)
-    fio2 = st.number_input("FiO2 (ej. 0.21)", 0.21, 1.00, 0.21, 0.01)
+    fio2 = st.number_input("FiO2 (decimal ej. 0.21)", 0.21, 1.00, 0.21, 0.01)
     edad = st.number_input("Edad (años)", 0, 115, 45)
     fr = st.number_input("FR (resp/min)", 5, 60, 20)
     spo2 = st.number_input("SpO2 (%)", 40, 100, 94)
 
-cloro_u = st.sidebar.number_input("Cloro Urinario (mEq/L)", 0, 150, 0)
-
-# --- I. CONSISTENCIA INTERNA ---
-st.header("I. Evaluación de la Consistencia Interna")
+# --- 3. CONSISTENCIA INTERNA ---
+st.header("I. Consistencia Interna")
 h_ion = 24 * (pco2 / hco3)
 if ph < 7.2 or ph > 7.4:
     ph_hh = 6.1 + math.log10(hco3 / (pco2 * 0.03))
     dif = abs(ph_hh - ph)
-    st.write(f"pH Calculado (HH): {ph_hh:.3f} | Diferencia: {dif:.3f}")
-    if dif <= 0.05: st.success("HAY CONSISTENCIA INTERNA")
-    else: st.error("NO HAY CONSISTENCIA: Repetir por posible contaminación.")
+    if dif <= 0.05: st.success(f"CONSISTENTE (pH HH: {ph_hh:.3f})")
+    else: st.error("NO CONSISTENTE: Revisar muestra.")
 else:
     r80 = 80 - float(f"{ph:.2f}"[-2:])
     div_80 = h_ion / r80 if r80 != 0 else 0
-    st.write(f"H+: {h_ion:.1f} | R80: {r80}")
-    if 0.7 <= div_80 <= 1.2: st.success("HAY CONSISTENCIA INTERNA")
-    else: st.error("NO HAY CONSISTENCIA")
+    if 0.7 <= div_80 <= 1.2: st.success("CONSISTENTE (Regla 80)")
+    else: st.error("NO CONSISTENTE")
 
-# --- II. ESTADO PH ---
-st.header("II. Estado Ácido-Base")
-if ph < 7.4: st.error("ACIDOSIS")
-elif ph > 7.4: st.success("ALCALOSIS")
-else: st.info("NEUTRO")
-
-# --- III. TRASTORNOS ---
-st.header("III. Trastornos y Compensaciones")
+# --- 4. TRASTORNOS ---
+st.header("II. Análisis de Trastornos")
 ag_c = (na - (cl + hco3)) + (2.5 * (4 - alb))
 
-# Acidosis Respiratoria
-if ph < 7.4 and pco2 > 32:
-    st.subheader("🛑 ACIDOSIS RESPIRATORIA")
-    dp = pco2 - 30
-    h_esp = 20 + (dp/10)
-    if hco3 <= h_esp + 1: st.warning("ESTADO: AGUDA")
-    else: st.warning("ESTADO: CRÓNICA")
-    st.markdown("**Causas:** SNC (VITAMINS), SNP (Guillain Barré), Placa (Miastenia), Muscular (Fatiga), Alvéolo (EPOC/SDRA), Tórax.")
-
-# Acidosis Metabólica
+# ACIDOSIS METABÓLICA
 if ph < 7.4 and hco3 < 18:
     st.subheader("🛑 ACIDOSIS METABÓLICA")
     win = (1.5 * hco3) + 8
-    st.write(f"PaCO2 esperada (Winters): {win:.1f} +/- 2")
-    if pco2 > win + 2: st.warning("Acidosis respiratoria sobreagregada")
-    elif pco2 < win - 2: st.warning("Alcalosis respiratoria asociada")
+    st.write(f"**PaCO2 esperada (Winters):** {win:.1f} ± 2")
+    if pco2 > win + 2: st.error("INTERPRETACIÓN: Acidosis Respiratoria Sobreagregada (No compensa)")
+    elif pco2 < win - 2: st.success("INTERPRETACIÓN: Alcalosis Respiratoria Asociada")
+    else: st.info("INTERPRETACIÓN: Acidosis Metabólica Compensada")
     
-    st.write(f"Anión GAP Corregido: {ag_c:.1f}")
     if ag_c > 12:
-        st.error("GOLDMARCC: Glicoles, Oxiprolina, Lactato, D-Lactato, Metanol, Aspirina, Rabdomiólisis, Cetoacidosis, Creatinina.")
+        st.error(f"ANION GAP ELEVADO ({ag_c:.1f}) - GOLDMARCC:")
+        st.markdown("G: Glicoles | O: Oxiprolina | L: Lactato (>4) | D: D-Lactato | M: Metanol | A: Aspirina | R: Rabdomiólisis | C: Cetoacidosis | C: Creatinina (IR).")
         dg = (ag_c - 10) - (20 - hco3)
-        if -5 <= dg <= 5: st.info(f"Delta Gap {dg:.1f}: Pura")
-        elif dg > 5: st.info(f"Delta Gap {dg:.1f}: Alcalosis Met. Sobreagregada")
-        else: st.info(f"Delta Gap {dg:.1f}: Acidosis Met. Hiperclorémica")
+        st.info(f"Delta Gap: {dg:.1f}")
+    else:
+        st.info("ANION GAP NORMAL: Hipercloremia, Diarrea, ATR.")
 
-# Alcalosis Respiratoria
+# ACIDOSIS RESPIRATORIA
+if ph < 7.4 and pco2 > 32:
+    st.subheader("🛑 ACIDOSIS RESPIRATORIA")
+    dp = pco2 - 30
+    h_esp = 20 + (1 * (dp/10))
+    st.warning("ESTADO: AGUDA" if hco3 <= h_esp + 1 else "ESTADO: CRÓNICA")
+    st.markdown("**CAUSAS (VITAMINS):** SNC, SNP (Guillain Barré), Placa (Miastenia), Muscular (Fatiga), Alvéolo (EPOC), Tórax.")
+
+# ALCALOSIS RESPIRATORIA
 if ph > 7.4 and pco2 < 28:
     st.subheader("🛑 ALCALOSIS RESPIRATORIA")
-    st.markdown("**Causas (VINDICATE):** Vascular, Infección, Neoplasia, Drogas, Idiopático, Congénito, Autoinmune, Trauma, Endocrino.")
+    st.markdown("**CAUSAS (VINDICATE):** Vascular, Infección, Neoplasia, Drogas, Idiopático, Autoinmune, Trauma.")
 
-# Alcalosis Metabólica
-if ph > 7.4 and hco3 > 22:
-    st.subheader("🛑 ALCALOSIS METABÓLICA")
-    p_esp = (0.7 * hco3) + 20
-    st.write(f"PaCO2 esperada: {p_esp:.1f} +/- 5")
-    if cloro_u > 0:
-        if cloro_u < 20: st.info("CLORO-SENSIBLE: Vómitos, drenaje NG, diuréticos.")
-        else: st.info("CLORO-RESISTENTE: Cushing, Bartter, Hipopotasemia.")
-
-# --- IV. OXIGENACIÓN ---
+# --- 5. OXIGENACIÓN (GRADIENTE Y COMPARACIÓN) ---
 st.divider()
-st.header("IV. Evaluación de la Oxigenación")
+st.header("III. Evaluación de la Oxigenación")
 
-pao2_calc = (fio2 * 513) - (pco2 / 0.8)
-g_real = pao2_calc - pa02
-g_id = (edad / 4) + 4
+# Cálculo PAO2 y Diferencia (Gradiente Real)
+pao2_calculada = (fio2 * 513) - (pco2 / 0.8)
+gradiente_real = pao2_calculada - pa02
+gradiente_ideal = (edad / 4) + 4
 
 if pa02 < 60:
     st.error(f"HIPOXEMIA (PaO2: {pa02} mmHg)")
-    st.markdown("**Causas:** 1. PB baja, 2. OVACE, 3. Laringe, 4. Tráquea/Bronquios, 5. Alvéolo (Pus/Sangre/Agua), 6. Intersticio, 7. Vaso (TEP).")
+    st.markdown("**CAUSAS:** 1. PB baja | 2. OVACE | 3. Laringe | 4. Vía Aérea | 5. Alvéolo | 6. Intersticio | 7. Vaso (TEP).")
 
-ca, cb, cc = st.columns(3)
-ca.metric("PAFI", f"{(pa02/fio2):.1f}")
-cb.metric("SAFI", f"{(spo2/fio2):.1f}")
-cc.metric("ROX Index", f"{((spo2/fio2)/fr):.2f}")
+c_a, c_b, c_c = st.columns(3)
+c_a.metric("PAFI", f"{(pa02/fio2):.1f}")
+c_b.metric("Gradiente Real", f"{gradiente_real:.1f}")
+c_c.metric("Gradiente Ideal", f"{gradiente_ideal:.1f}")
 
-st.write(f"Gradiente A-a Real: {g_real:.1f} | Ideal: {g_id:.1f}")
-es_grad_elevado = g_real > (g_id + 10)
-if es_grad_elevado: st.error("Diferencia Elevada: LESIÓN INTRAPULMONAR")
-else: st.success("Diferencia Normal: PULMÓN SANO (Extra-pulmonar)")
+# COMPARACIÓN LÓGICA
+st.subheader("Resultado de la Diferencia Alveolo-Arterial:")
+if gradiente_real > (gradiente_ideal + 10):
+    st.error(f"Diferencia de {gradiente_real:.1f} es SUPERIOR a la ideal de {gradiente_ideal:.1f}")
+    st.error("DIAGNÓSTICO: LESIÓN INTRAPULMONAR (Pulmón enfermo)")
+else:
+    st.success(f"Diferencia de {gradiente_real:.1f} es acorde a la ideal de {gradiente_ideal:.1f}")
+    st.success("DIAGNÓSTICO: PULMÓN SANO (Causa extra-pulmonar)")
 
-st.subheader("Interpretación por Gradiente:")
-if ph < 7.4 and pco2 > 32:
-    if not es_grad_elevado: st.info("Interpretación: Depresión SNC o Enfermedad Neuromuscular.")
-    else: st.info("Interpretación: Asma, Neumonía o EPOC.")
-elif ph > 7.4 and pco2 < 28:
-    if not es_grad_elevado: st.info("Interpretación: Dolor, ansiedad, AVC, embarazo.")
-    else: st.info("Interpretación: Neumonía, Edema pulmonar, TEP, Sepsis.")
+# INTERPRETACIÓN CRUZADA FINAL
+st.subheader("Interpretación Clínica Cruzada:")
+if pco2 > 32: # Acidosis Resp
+    if gradiente_real > (gradiente_ideal + 10): st.info("Acidosis Resp + Gradiente Alto: Neumonía, EPOC, Asma.")
+    else: st.info("Acidosis Resp + Gradiente Normal: Depresión SNC, Guillain-Barré.")
+elif pco2 < 28: # Alcalosis Resp
+    if gradiente_real > (gradiente_ideal + 10): st.info("Alcalosis Resp + Gradiente Alto: TEP, Sepsis, Edema Pulmonar.")
+    else: st.info("Alcalosis Resp + Gradiente Normal: Ansiedad, Dolor, Embarazo.")
 
-st.caption("Propiedad: Dr. Gonzalo Bernal Ferreira - Gases 2600")
+st.caption("Dr. Gonzalo Bernal Ferreira - Gases 2600")
