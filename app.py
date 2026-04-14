@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import math
 
-# --- 1. GOOGLE ANALYTICS (CON SU ID G-KF0W30KFST) ---
+# --- 1. GOOGLE ANALYTICS (CON SU ID REAL) ---
 components.html("""
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-KF0W30KFST"></script>
 <script>
@@ -13,7 +13,7 @@ components.html("""
 </script>
 """, height=0)
 
-# --- 2. CONFIGURACIÓN DE LA PÁGINA ---
+# --- 2. CONFIGURACIÓN ---
 st.set_page_config(page_title="Gases 2600", layout="wide")
 st.markdown("<h1 style='text-align: center;'>🫁 Gases Arteriales 2600</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Dr. Gonzalo Bernal Ferreira</h3>", unsafe_allow_html=True)
@@ -38,72 +38,50 @@ with c4:
     fr = st.number_input("FR (resp/min)", 5, 60, 20)
     spo2 = st.number_input("SpO2 (%)", 40, 100, 94)
 
-# --- 4. EVALUACIÓN DE CONSISTENCIA ---
-st.header("I. Consistencia Interna")
+# --- 4. CONSISTENCIA ---
 h_ion = 24 * (pco2 / hco3)
 r80 = 80 - float(f"{ph:.2f}"[-2:])
 div_80 = h_ion / r80 if r80 != 0 else 0
 if 0.7 <= div_80 <= 1.2: 
     st.success(f"✅ CONSISTENCIA OK (H+: {h_ion:.1f})")
 else: 
-    st.error(f"❌ REVISAR MUESTRA (H+ calc: {h_ion:.1f} / R80: {r80})")
+    st.error(f"❌ REVISAR MUESTRA")
 
-# --- 5. ANÁLISIS DE TRASTORNOS ---
-st.header("II. Trastornos y Causas")
+# --- 5. TRASTORNOS ---
 ag_c = (na - (cl + hco3)) + (2.5 * (4 - alb))
 
-# Acidosis Metabólica
 if ph < 7.4 and hco3 < 18:
     st.error("🛑 ACIDOSIS METABÓLICA")
     win = (1.5 * hco3) + 8
-    st.write(f"**PaCO2 Winters (esperada):** {win:.1f} ± 2")
-    if pco2 > win + 2: st.warning("INTERPRETACIÓN: Acidosis Resp. Sobreagregada")
-    elif pco2 < win - 2: st.info("INTERPRETACIÓN: Alcalosis Resp. Asociada")
-    else: st.info("INTERPRETACIÓN: Acidosis Metabólica Compensada")
-    
+    st.write(f"**PaCO2 Winters:** {win:.1f} ± 2")
     if ag_c > 12:
-        st.error(f"CAUSA: ANION GAP ELEVADO ({ag_c:.1f}) - GOLDMARCC")
+        st.error("CAUSA: AG ELEVADO (GOLDMARCC)")
         st.write("G: Glicoles | O: Oxiprolina | L: Lactato | D: D-Lactato | M: Metanol | A: Aspirina | R: Rabdomiólisis | C: Cetoacidosis | C: Creatinina")
-    else: st.info("CAUSA: ANION GAP NORMAL (Hipercloremia, Diarrea, ATR)")
+    else: st.info("CAUSA: AG NORMAL (Diarrea, ATR)")
 
-# Alcalosis Metabólica
 if ph > 7.4 and hco3 > 22:
     st.success("🛑 ALCALOSIS METABÓLICA")
-    p_esp = (0.7 * hco3) + 20
-    st.write(f"**PaCO2 esperada:** {p_esp:.1f} ± 5")
     if cloro_u > 0:
-        st.info("TIPO: CLORO-SENSIBLE (Vómitos)" if cloro_u < 20 else "TIPO: CLORO-RESISTENTE (Cushing/Bartter)")
+        st.info("TIPO: CLORO-SENSIBLE" if cloro_u < 20 else "TIPO: CLORO-RESISTENTE")
 
-# Acidosis Respiratoria
-if ph < 7.4 and pco2 > 32:
-    st.warning("🛑 ACIDOSIS RESPIRATORIA")
-    st.markdown("**CAUSAS (VITAMINS):** Vascular, Infección, Trauma, Autoinmune, Metabólico, Iatrogenia, Neoplasia, SNC.")
-
-# Alcalosis Respiratoria
-if ph > 7.4 and pco2 < 28:
-    st.info("🛑 ALCALOSIS RESPIRATORIA")
-    st.markdown("**CAUSAS (VINDICATE):** Vascular, Infección, Neoplasia, Drogas, Idiopático, Autoinmune, Trauma.")
-
-# --- 6. EVALUACIÓN DE OXIGENACIÓN ---
+# --- 6. OXIGENACIÓN ---
 st.divider()
-st.header("III. Oxigenación (Bogotá)")
-
 pao2_calc = (fio2 * 513) - (pco2 / 0.8)
-grad_real = pao2_calc - pa02
-grad_ideal = (edad / 4) + 4
+g_real = pao2_calc - pa02
+g_id = (edad / 4) + 4
 
 if pa02 < 60:
     st.error(f"HIPOXEMIA ({pa02} mmHg)")
-    st.write("**7 Causas:** 1-PB baja, 2-OVACE, 3-Laringe, 4-Vía aérea, 5-Alvéolo (Pus/Sangre/Agua), 6-Intersticio, 7-Vaso (TEP)")
+    st.write("Causas: 1-PB baja, 2-OVACE, 3-Laringe, 4-Vía aérea, 5-Alvéolo, 6-Intersticio, 7-Vaso (TEP)")
 
 ca, cb, cc = st.columns(3)
 ca.metric("PAFI", f"{(pa02/fio2):.1f}")
-cb.metric("Gradiente Real", f"{grad_real:.1f}")
-cc.metric("Gradiente Ideal", f"{grad_ideal:.1f}")
+cb.metric("Gradiente Real", f"{g_real:.1f}")
+cc.metric("Gradiente Ideal", f"{g_id:.1f}")
 
-if grad_real > (grad_ideal + 10):
-    st.error(f"Gradiente {grad_real:.1f} es ELEVADO: LESIÓN INTRAPULMONAR")
+if g_real > (g_id + 10):
+    st.error("DIAGNÓSTICO: LESIÓN INTRAPULMONAR")
 else:
-    st.success(f"Gradiente {grad_real:.1f} es NORMAL: PULMÓN SANO (Extra-pulmonar)")
+    st.success("DIAGNÓSTICO: PULMÓN SANO (Extra-pulmonar)")
 
 st.caption("Gases 2600 - Propiedad Dr. Gonzalo Bernal Ferreira")
