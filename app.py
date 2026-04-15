@@ -57,12 +57,12 @@ if ph < 7.2 or ph > 7.4:
         st.success("Consistencia adecuada")
         consistente = True
     else:
-        st.error("NO consistente → repetir muestra")
+        st.error("NO consistente → posible error de muestra")
         consistente = False
 
 else:
     h_ion = 24 * (pco2 / hco3)
-    regla80 = 80 - int(str(round(ph,2)).split(".")[1])
+    regla80 = 80 - int((ph * 100) % 100)
     relacion = h_ion / regla80
 
     st.write(f"H+: {h_ion:.1f}")
@@ -76,11 +76,9 @@ else:
         st.error("NO consistente")
         consistente = False
 
-# =========================
-# SI NO CONSISTENTE → STOP
-# =========================
+# ⚠️ NO SE DETIENE LA APP
 if not consistente:
-    st.stop()
+    st.warning("Interpretar con precaución")
 
 # =========================
 # PASO 2 ESTADO
@@ -110,20 +108,17 @@ elif ph > 7.4 and pco2 < 28:
 elif ph > 7.4 and hco3 > 22:
     dx = "Alcalosis metabólica"
 else:
-    dx = "Trastorno mixto"
+    dx = "Trastorno mixto o compensado"
 
 st.markdown(f"### {dx}")
 
 # =========================
-# PASO 4 MANEJO SEGÚN DX
+# ACIDOSIS METABÓLICA
 # =========================
-
-# -------- ACIDOSIS METABÓLICA --------
 if dx == "Acidosis metabólica":
 
     st.subheader("Compensación (Winter)")
     esperado = 1.5 * hco3 + 8
-
     st.write(f"PaCO2 esperada: {esperado:.1f} ±2")
 
     if pco2 > esperado + 2:
@@ -142,7 +137,7 @@ if dx == "Acidosis metabólica":
 
     if ag_corr > 12:
 
-        with st.expander("GOLDMARCC", expanded=True):
+        with st.expander("Causas GOLDMARCC", expanded=True):
             st.markdown("""
             G: Glicoles  
             O: Oxiprolina  
@@ -165,7 +160,9 @@ if dx == "Acidosis metabólica":
         else:
             st.error("Acidosis hiperclorémica")
 
-# -------- ACIDOSIS RESPIRATORIA --------
+# =========================
+# ACIDOSIS RESPIRATORIA
+# =========================
 if dx == "Acidosis respiratoria":
 
     delta_co2 = pco2 - 30
@@ -175,11 +172,18 @@ if dx == "Acidosis respiratoria":
     st.write(f"HCO3 agudo esperado: {hco3_agudo:.1f}")
     st.write(f"HCO3 crónico esperado: {hco3_cronico:.1f}")
 
-    with st.expander("Causas VITAMINS", expanded=True):
-        st.write("SNC, SNP, placa NM, músculo, pulmón, caja torácica")
+    with st.expander("Causas (VITAMINS)", expanded=True):
+        st.markdown("""
+        SNC: ACV, infecciones, trauma, fármacos  
+        SNP: Guillain-Barré  
+        Placa NM: Miastenia, botulismo  
+        Músculo: fatiga  
+        Pulmón: EPOC, asma, SDRA  
+        Caja torácica: cifoescoliosis  
+        """)
 
 # =========================
-# PASO 5 OXIGENACIÓN
+# OXIGENACIÓN
 # =========================
 st.subheader("5️⃣ Oxigenación")
 
@@ -205,4 +209,4 @@ if pao2 < 60:
     else:
         st.success("Origen extrapulmonar")
 
-st.caption("Algoritmo clínico Bogotá - versión final")
+st.caption("Algoritmo clínico Bogotá - versión funcional")
