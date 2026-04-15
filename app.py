@@ -13,7 +13,7 @@ components.html("""
 """, height=0)
 
 # --- 2. CONFIGURACIÓN ---
-st.set_page_config(page_title="Gases 2600 PRO - Final", layout="wide")
+st.set_page_config(page_title="Gases 2600 PRO - Bogotá", layout="wide")
 st.markdown("<h1 style='text-align: center; color: #D32F2F;'>🏔️ Gases Arteriales Bogotá (2600m)</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align: center;'>Dr. Gonzalo Bernal Ferreira</h3>", unsafe_allow_html=True)
 
@@ -34,11 +34,11 @@ with st.sidebar:
     edad = st.number_input("Edad (años)", 0, 110, 65)
     fr = st.number_input("FR (resp/min)", 4, 70, 8)
 
-# --- 4. CÁLCULOS EXPERTOS ---
+# --- 4. MOTOR DE CÁLCULO ---
 h_ion = 24 * (pco2 / hco3)
 r80 = 80 - float(f"{ph:.2f}"[-2:])
 ag_c = (na - (cl + hco3)) + (2.5 * (4 - alb))
-# Bogotá: FiO2 * (560 - 47)
+# Bogotá: FiO2 * (560 - 47) = 513
 pao2_calc = (fio2 * 513) - (pco2 / 0.8)
 g_real = pao2_calc - pa02
 g_id = (edad / 4) + 4
@@ -50,41 +50,53 @@ rox = (safi / fr) if fr > 0 else 0
 # I. CONSISTENCIA
 st.subheader("✅ I. Consistencia Interna")
 if 0.8 <= (h_ion / r80) <= 1.2:
-    st.success(f"MUESTRA VÁLIDA: H+ calculado ({h_ion:.1f}) es consistente con pH.")
+    st.success(f"MUESTRA VÁLIDA: H+ ({h_ion:.1f}) es consistente con pH.")
 else:
-    st.error(f"❌ MUESTRA NO CONFIABLE: H+ {h_ion:.1f} no correlaciona. Revisar pre-analítica.")
+    st.error(f"❌ MUESTRA NO CONFIABLE: H+ {h_ion:.1f} no correlaciona. Revisar muestra.")
 
-# II. ANÁLISIS ÁCIDO-BASE (Módulos Independientes)
+# II. ANÁLISIS ÁCIDO-BASE
 st.subheader("⚖️ II. Equilibrio Ácido-Base")
 col1, col2 = st.columns(2)
 
 with col1:
-    # Módulo Respiratorio
+    # Bloque Respiratorio (VITAMINS)
     if pco2 > 32:
         st.error("🛑 ACIDOSIS RESPIRATORIA")
-        with st.expander("🔍 Causas VITAMINS", expanded=True):
-            st.write("**V:** Vascular (ACV, TEP) | **I:** Sepsis, Neumonía | **T:** Opioides, BZD | **A:** Miastenia, GB | **M:** Metabólico | **S:** Apnea, Obesidad.")
+        with st.expander("🔍 Causas VITAMINS (Causas de Retención de CO2)", expanded=True):
+            st.write("**V:** Vascular (ACV, TEP) | **I:** Infección (Sepsis, Neumonía)")
+            st.write("**T:** Toxinas/Trauma (Opioides, BZD, Trauma Tórax) | **A:** Autoimmune (Miastenia, GB)")
+            st.write("**M:** Metabólico (Hipopotasemia) | **I:** Iatrogenia (VM mal ajustada)")
+            st.write("**N:** Neoplasia (SNC) | **S:** SNC / Sueño (Apnea, Hipoventilación)")
     elif pco2 < 28:
         st.success("🚨 ALCALOSIS RESPIRATORIA")
+        with st.expander("🔍 Causas"):
+            st.write("Ansiedad, dolor, fiebre, TEP temprano, estimulación central.")
 
-    # Módulo Metabólico
+    # Bloque Metabólico (Winters + GOLDMARCC)
     if hco3 < 19:
         st.error("🛑 ACIDOSIS METABÓLICA")
         win = (1.5 * hco3) + 8
-        st.info(f"Winters (PaCO2 esperada): {win:.1f} ± 2")
+        st.info(f"Winters (Compensación esperada): PaCO2 {win:.1f} ± 2")
+        if pco2 > win + 2: st.warning("⚠️ Acidosis Respiratoria Sobreagregada (Falla ventilatoria)")
+        elif pco2 < win - 2: st.warning("⚠️ Alcalosis Respiratoria Asociada (Hiperventilación extra)")
     elif hco3 > 24:
         st.success("🚨 ALCALOSIS METABÓLICA")
 
 with col2:
-    # Módulo de Brechas (GAP y Delta)
+    # Módulo de Brechas (Gap y Delta) - SIEMPRE VISIBLES SI HAY ACIDOSIS
     st.metric("Anión Gap Corregido", f"{ag_c:.1f}", delta="Corte: 12", delta_color="inverse")
+    
     if ag_c > 12:
-        with st.expander("🔍 Causas GOLDMARCC", expanded=True):
-            st.write("**G:** Glicoles | **O:** Oxiprolina | **L:** Lactato | **D:** D-Lactato | **M:** Metanol | **A:** Aspirina | **R:** Renal | **C:** Cetoacidosis | **C:** Creatinina")
+        with st.expander("🔍 Causas GAP ELEVADO (GOLDMARCC)", expanded=True):
+            st.write("**G:** Glicoles (Etileno/Propileno) | **O:** Oxiprolina (Acetaminofén crónico)")
+            st.write("**L:** L-Lactato (Hipoxia/Sepsis) | **D:** D-Lactato (Síndrome Intestino Corto)")
+            st.write("**M:** Metanol | **A:** Aspirina (Salicilatos)")
+            st.write("**R:** Renal (Falla Aguda/Crónica) / Rabdomiólisis")
+            st.write("**C:** Cetoacidosis (Diabética, Alcohólica, Ayuno) | **C:** Creatinina (Uremia)")
         
         delta_gap = (ag_c - 12) - (24 - hco3)
         if delta_gap > 6: st.success(f"🔍 Delta Gap ({delta_gap:.1f}): ALCALOSIS METABÓLICA ASOCIADA")
-        elif delta_gap < -6: st.warning(f"🔍 Delta Gap ({delta_gap:.1f}): ACIDOSIS NO GAP ASOCIADA")
+        elif delta_gap < -6: st.warning(f"🔍 Delta Gap ({delta_gap:.1f}): ACIDOSIS NO GAP ASOCIADA (Hiperclorémica)")
 
 # III. OXIGENACIÓN BOGOTÁ
 st.subheader("☁️ III. Oxigenación y Gradiente (2600m)")
@@ -97,12 +109,14 @@ def cat_sdra(v):
 
 o1.metric("PAFI", f"{pafi:.0f}", cat_sdra(pafi))
 o2.metric("SAFI", f"{safi:.0f}", cat_sdra(safi))
-o3.metric("ROX Index", f"{rox:.2f}", "Riesgo VNI" if rox < 4.88 else "Estable")
+o3.metric("ROX Index", f"{rox:.2f}", "Falla VNI" if rox < 4.88 else "Estable")
 o4.metric("Gradiente A-a", f"{g_real:.1f}", f"Ideal: {g_id:.1f}")
 
 if g_real > (g_id + 10):
-    st.error(f"DIAGNÓSTICO: LESIÓN INTRAPULMONAR")
+    st.error(f"DIAGNÓSTICO: LESIÓN INTRAPULMONAR (Parenquimatosa)")
+    with st.expander("🔍 Las 7 Causas de Hipoxemia"):
+        st.write("1. Altura | 2. Hipoventilación | 3. Shunt | 4. V/Q desigual | 5. Difusión | 6. ↓Gasto | 7. Hb anómala")
 else:
-    st.success("DIAGNÓSTICO: PULMÓN SANO / CAUSA EXTRAPULMONAR")
+    st.success("DIAGNÓSTICO: PULMÓN SANO (Causa Extrapulmonar / Hipoventilación Pura)")
 
-st.caption("Gases 2600 PRO - Bogotá v6.0 Final | Dr. Gonzalo Bernal Ferreira")
+st.caption("Gases 2600 PRO - Bogotá v6.5 | Dr. Gonzalo Bernal Ferreira")
