@@ -23,8 +23,8 @@ st.markdown("<h4 style='text-align: center;'>Dr. Gonzalo Bernal Ferreira</h4>", 
 with st.sidebar:
     st.header("📥 Datos clínicos")
 
-    ph = st.number_input("pH", 6.8, 7.8, 7.18, 0.01)
-    pco2 = st.number_input("PaCO2", 10.0, 100.0, 55.0)
+    ph = st.number_input("pH", 6.8, 7.8, 7.30, 0.01)
+    pco2 = st.number_input("PaCO2", 10.0, 100.0, 30.0)
     hco3 = st.number_input("HCO3", 2.0, 50.0, 20.0)
 
     st.divider()
@@ -35,56 +35,72 @@ with st.sidebar:
 
     st.divider()
 
-    pao2 = st.number_input("PaO2", 10.0, 300.0, 48.0)
-    spo2 = st.number_input("SpO2 (%)", 30, 100, 85)
+    pao2 = st.number_input("PaO2", 10.0, 300.0, 60.0)
+    spo2 = st.number_input("SpO2 (%)", 30, 100, 90)
     fio2 = st.number_input("FiO2", 0.21, 1.0, 0.21)
     edad = st.number_input("Edad", 0, 100, 40)
-    fr = st.number_input("FR", 4, 60, 12)
+    fr = st.number_input("FR", 4, 60, 16)
 
 # =========================
-# CÁLCULOS
+# PASO 1 CONSISTENCIA
 # =========================
+st.subheader("1️⃣ Consistencia interna")
+
 henderson = 6.1 + math.log10(hco3 / (pco2 * 0.03))
 diff = abs(henderson - ph)
 
-ag = na - (cl + hco3)
-ag_corr = ag + (2.5 * (4 - alb))
+if ph < 7.2 or ph > 7.4:
+    st.write(f"pH calculado: {henderson:.3f}")
+    st.write(f"Diferencia: {diff:.3f}")
 
-pao2_calc = (fio2 * 513) - (pco2 / 0.8)
-grad = pao2_calc - pao2
-grad_ideal = (edad / 4) + 4
+    if diff <= 0.05:
+        st.success("Consistencia adecuada")
+        consistente = True
+    else:
+        st.error("NO consistente → repetir muestra")
+        consistente = False
 
-pafi = pao2 / fio2
-safi = spo2 / fio2
-rox = safi / fr if fr > 0 else 0
-
-# =========================
-# RESULTADOS
-# =========================
-
-# CONSISTENCIA
-st.subheader("✅ Consistencia interna")
-st.write(f"pH calculado: {henderson:.3f}")
-st.write(f"Diferencia: {diff:.3f}")
-
-if diff <= 0.05:
-    st.success("Muestra válida")
 else:
-    st.error("Muestra NO confiable")
+    h_ion = 24 * (pco2 / hco3)
+    regla80 = 80 - int(str(round(ph,2)).split(".")[1])
+    relacion = h_ion / regla80
 
-# ESTADO
-st.subheader("⚖️ Estado ácido-base")
+    st.write(f"H+: {h_ion:.1f}")
+    st.write(f"Regla 80: {regla80}")
+    st.write(f"Relación: {relacion:.2f}")
+
+    if 0.7 <= relacion <= 1.2:
+        st.success("Consistencia adecuada")
+        consistente = True
+    else:
+        st.error("NO consistente")
+        consistente = False
+
+# =========================
+# SI NO CONSISTENTE → STOP
+# =========================
+if not consistente:
+    st.stop()
+
+# =========================
+# PASO 2 ESTADO
+# =========================
+st.subheader("2️⃣ Estado ácido-base")
 
 if ph > 7.4:
     estado = "Alcalosis"
 elif ph < 7.4:
     estado = "Acidosis"
 else:
-    estado = "Normal"
+    estado = "Neutro"
 
-st.write(f"Estado: **{estado}**")
+st.write(estado)
 
-# DIAGNÓSTICO
+# =========================
+# PASO 3 DIAGNÓSTICO
+# =========================
+st.subheader("3️⃣ Trastorno primario")
+
 if ph < 7.4 and pco2 > 32:
     dx = "Acidosis respiratoria"
 elif ph < 7.4 and hco3 < 18:
@@ -96,44 +112,18 @@ elif ph > 7.4 and hco3 > 22:
 else:
     dx = "Trastorno mixto"
 
-st.markdown(f"### 🧠 Diagnóstico: {dx}")
+st.markdown(f"### {dx}")
 
 # =========================
-# ACIDOSIS RESPIRATORIA
+# PASO 4 MANEJO SEGÚN DX
 # =========================
-if dx == "Acidosis respiratoria":
 
-    delta_co2 = pco2 - 30
-    hco3_agudo = 20 + (delta_co2/10)*1
-    hco3_cronico = 20 + (delta_co2/10)*4
+# -------- ACIDOSIS METABÓLICA --------
+if dx == "Acidosis metabólica":
 
-    st.write(f"HCO3 esperado agudo: {hco3_agudo:.1f}")
-    st.write(f"HCO3 esperado crónico: {hco3_cronico:.1f}")
-
-    if abs(hco3 - hco3_agudo) < 2:
-        st.error("Aguda")
-    elif abs(hco3 - hco3_cronico) < 3:
-        st.warning("Crónica")
-    else:
-        st.warning("Crónica agudizada")
-
-    with st.expander("🔍 Causas (VITAMINS)", expanded=True):
-        st.markdown("""
-        SNC: ACV, infecciones, trauma, fármacos  
-        SNP: Guillain-Barré  
-        Placa NM: Miastenia, botulismo  
-        Músculo: fatiga diafragmática  
-        Pulmón: EPOC, asma, SDRA  
-        Caja torácica: cifoescoliosis  
-        """)
-
-# =========================
-# ACIDOSIS METABÓLICA
-# =========================
-elif dx == "Acidosis metabólica":
-
-    st.subheader("🔄 Compensación (Winter)")
+    st.subheader("Compensación (Winter)")
     esperado = 1.5 * hco3 + 8
+
     st.write(f"PaCO2 esperada: {esperado:.1f} ±2")
 
     if pco2 > esperado + 2:
@@ -143,91 +133,76 @@ elif dx == "Acidosis metabólica":
     else:
         st.success("Compensación adecuada")
 
-    st.subheader("🧪 Anion Gap")
+    # ANION GAP
+    ag = na - (cl + hco3)
+    ag_corr = ag + (2.5 * (4 - alb))
+
+    st.subheader("Anion Gap")
     st.write(f"AG corregido: {ag_corr:.1f}")
 
     if ag_corr > 12:
 
-        with st.expander("🔬 GOLDMARK", expanded=True):
+        with st.expander("GOLDMARCC", expanded=True):
             st.markdown("""
-            Glicoles  
-            Oxiprolina  
-            Lactato  
-            D-lactato  
-            Metanol  
-            Aspirina  
-            Renal  
-            Cetoacidosis  
+            G: Glicoles  
+            O: Oxiprolina  
+            L: Lactato  
+            D: D-lactato  
+            M: Metanol  
+            A: ASA / fármacos  
+            R: Rabdomiólisis  
+            C: Cetoacidosis  
+            C: Creatinina elevada  
             """)
 
-        delta_gap = (ag_corr - 10) - (20 - hco3)
-        st.write(f"Delta Gap: {delta_gap:.1f}")
+        delta = (ag_corr - 10) - (20 - hco3)
+        st.write(f"Delta GAP: {delta:.1f}")
 
-        if -5 <= delta_gap <= 5:
-            st.success("Acidosis pura")
-        elif delta_gap > 5:
+        if -5 <= delta <= 5:
+            st.success("Acidosis metabólica pura")
+        elif delta > 5:
             st.warning("Alcalosis metabólica agregada")
         else:
             st.error("Acidosis hiperclorémica")
 
-# =========================
-# ALCALOSIS RESPIRATORIA
-# =========================
-elif dx == "Alcalosis respiratoria":
+# -------- ACIDOSIS RESPIRATORIA --------
+if dx == "Acidosis respiratoria":
 
-    delta = 30 - pco2
-    hco3_agudo = 20 - (delta/10)*2
-    hco3_cronico = 20 - (delta/10)*4
+    delta_co2 = pco2 - 30
+    hco3_agudo = 20 + (delta_co2/10)
+    hco3_cronico = 20 + (delta_co2/10)*4
 
-    st.write(f"HCO3 esperado agudo: {hco3_agudo:.1f}")
-    st.write(f"HCO3 esperado crónico: {hco3_cronico:.1f}")
+    st.write(f"HCO3 agudo esperado: {hco3_agudo:.1f}")
+    st.write(f"HCO3 crónico esperado: {hco3_cronico:.1f}")
 
-# =========================
-# ALCALOSIS METABÓLICA
-# =========================
-elif dx == "Alcalosis metabólica":
-
-    esperado = 0.7 * hco3 + 20
-    st.write(f"PaCO2 esperada: {esperado:.1f} ±5")
+    with st.expander("Causas VITAMINS", expanded=True):
+        st.write("SNC, SNP, placa NM, músculo, pulmón, caja torácica")
 
 # =========================
-# OXIGENACIÓN
+# PASO 5 OXIGENACIÓN
 # =========================
-st.subheader("☁️ Oxigenación")
+st.subheader("5️⃣ Oxigenación")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("PAFI", f"{pafi:.0f}")
-col2.metric("SAFI", f"{safi:.0f}")
-col3.metric("ROX", f"{rox:.2f}")
+PAO2 = (513 * fio2) - (pco2 / 0.8)
+grad = PAO2 - pao2
+ideal = (edad / 4) + 4
 
-st.write(f"Gradiente A-a: {grad:.1f} (Ideal {grad_ideal:.1f})")
+pafi = pao2 / fio2
+safi = spo2 / fio2
+rox = safi / fr if fr > 0 else 0
 
-# CLASIFICACIÓN
-if pafi > 300:
-    st.success("PAFI normal")
-elif 200 <= pafi <= 300:
-    st.warning("PAFI leve")
-elif 100 <= pafi < 200:
-    st.error("PAFI moderado")
-else:
-    st.error("PAFI severo")
+st.write(f"Gradiente A-a: {grad:.1f} (Ideal {ideal:.1f})")
 
-if safi < 150:
-    st.error("SAFI severo")
+st.write(f"PAFI: {pafi:.0f}")
+st.write(f"SAFI: {safi:.0f}")
+st.write(f"ROX: {rox:.2f}")
 
-if rox < 3.85:
-    st.error("Alto riesgo de falla respiratoria")
-
-# HIPOXEMIA
 if pao2 < 60:
+    st.error("Hipoxemia")
 
-    st.error(f"HIPOXEMIA ({pao2} mmHg)")
-
-    if grad > grad_ideal + 10:
-        with st.expander("Causas intrapulmonares"):
-            st.write("Neumonía, SDRA, edema pulmonar, TEP")
+    if grad > ideal + 10:
+        st.warning("Origen intrapulmonar")
     else:
-        with st.expander("Causas extrapulmonares"):
-            st.write("Hipoventilación, altitud, depresión respiratoria")
+        st.success("Origen extrapulmonar")
 
-st.caption("Gases Bogotá PRO v1.0")
+st.caption("Algoritmo clínico Bogotá - versión final")
